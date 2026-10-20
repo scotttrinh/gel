@@ -60,3 +60,13 @@ find "$PREFIX/share/tests" -name __pycache__ -prune -exec rm -rf {} +
 # etc/ssl/cert.pem: gel-pkg ships certifi's bundle there.
 mkdir -p "$PREFIX/etc/ssl"
 cp "$PYLIB/site-packages/certifi/cacert.pem" "$PREFIX/etc/ssl/cert.pem"
+
+# Strip debug info, as gel-pkg did; python-build-standalone and the
+# extension builds (-g from sysconfig) leave it in.
+find "$PREFIX" -type f \( -perm -u+x -o -name '*.so' -o -name '*.so.*' -o -name '*.dylib' \) -print0 |
+    while IFS= read -r -d '' f; do
+        case "$(file -b "$f")" in
+            ELF*) strip --strip-debug "$f" ;;
+            Mach-O*) strip -S "$f" 2>/dev/null || true ;;
+        esac
+    done

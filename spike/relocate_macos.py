@@ -107,7 +107,9 @@ def main() -> int:
                 run("install_name_tool", "-delete_rpath", rp, str(f))
                 changed.add(f)
 
-    for f in changed:
+    # trim.sh strips every Mach-O file, which invalidates signatures, so
+    # re-sign them all, not just the ones changed here.
+    for f in files:
         run("codesign", "--force", "--sign", "-", str(f))
 
     problems = []

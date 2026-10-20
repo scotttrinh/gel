@@ -127,6 +127,11 @@ make -s -C "$SRC/edb_stat_statements" PG_CONFIG="$PG_CONFIG" > /dev/null
 make -s -C "$SRC/edb_stat_statements" PG_CONFIG="$PG_CONFIG" install > /dev/null
 stage pg-extensions
 
+# macOS 15.4+ SDKs declare strchrnul; libpg_query's copy of PostgreSQL's
+# snprintf.c defines a static one.  Rename it in that file (the real fix
+# belongs in the gelstable/libpg_query fork).
+perl -pi -e 's/\bstrchrnul\b/pg_query_strchrnul/g' \
+    "$SRC/edb/pgsql/parser/libpg_query/src/postgres/src_port_snprintf.c"
 mkdir -p "$PREFIX/share/data"
 export EDGEDB_BUILD_OFFICIAL=yes
 export EDGEDB_BUILD_IS_RELEASE=1
