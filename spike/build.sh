@@ -50,9 +50,18 @@ if [[ $LIBC == gnu ]]; then
     dnf module install -y -q nodejs:20
 else
     apk add --no-cache util-linux-dev zlib-dev perl linux-headers bison flex \
-        git zstd file setpriv nodejs npm pkgconf
+        git zstd file setpriv nodejs npm pkgconf cmake
 fi
 npm install -g --silent yarn
+# The build exports LD_LIBRARY_PATH for our own OpenSSL, which the distro's
+# node can't run against; give node a clean environment.
+NODE=$(command -v node)
+printf '#!/bin/sh\nexec env -u LD_LIBRARY_PATH %s "$@"\n' "$NODE" > /usr/local/bin/node
+chmod +x /usr/local/bin/node
+hash -r
+# Old sdists (e.g. sentencepiece) declare cmake_minimum_required < 3.5,
+# which CMake 4 rejects.
+export CMAKE_POLICY_VERSION_MINIMUM=3.5
 git config --global --add safe.directory '*'
 stage system-packages
 
@@ -181,30 +190,7 @@ stage server
 # ---------------------------------------------------------------- trim
 # pip writes console scripts with absolute shebangs; keep only what the
 # portable tree ships and replace the entry points with launchers.
-cd "$PREFIX/bin"
-for f in *; do
-    case "$f" in
-        python3|python3.12|postgres|initdb|pg_*|psql|ecpg|createdb|createuser|dropdb|dropuser|clusterdb|reindexdb|vacuumdb|vacuumlo|oid2name|pgbench) ;;
-        *) rm -f "$f" ;;
-    esac
-done
-for name in gel-server edgedb-server gel-load-ext edgedb-load-ext; do
-    module=edb.server.main
-    [[ $name == *load-ext ]] && module=edb.load_ext.main
-    cat > "$name.py" <<EOF
-# -*- coding: utf-8 -*-
-import re
-import sys
-from $module import main
-if __name__ == '__main__':
-    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?\$', '', sys.argv[0])
-    sys.exit(main())
-EOF
-    install -m 0755 /spike/launcher.sh "$name"
-done
-rm -rf "$PREFIX/include" "$PREFIX/lib/pkgconfig" "$PREFIX/share/man" \
-    "$PREFIX/share/doc"
-find "$PREFIX/lib" -maxdepth 1 -name '*.a' -delete
+bash /spike/trim.sh "$PREFIX" "$SRC" /spike
 stage trim
 
 # ---------------------------------------------------------------- relocate

@@ -43,7 +43,7 @@ FLEX_PREFIX=$(brew --prefix flex)
 export PATH="$BISON_PREFIX/bin:$FLEX_PREFIX/bin:$PATH"
 npm install -g --silent yarn
 RUST_VERSION=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' "$SRC/rust-toolchain.toml")
-rustup toolchain install -q --profile minimal "$RUST_VERSION"
+rustup toolchain install --profile minimal "$RUST_VERSION"
 rustup default "$RUST_VERSION"
 stage tools
 
@@ -154,30 +154,7 @@ grep -E 'Building wheel for|Created wheel for' "$OUT/pip-install.log" \
     > "$OUT/built-from-source.txt" || true
 stage server
 
-cd "$PREFIX/bin"
-for f in *; do
-    case "$f" in
-        python3|python3.12|postgres|initdb|pg_*|psql|ecpg|createdb|createuser|dropdb|dropuser|clusterdb|reindexdb|vacuumdb|vacuumlo|oid2name|pgbench) ;;
-        *) rm -f "$f" ;;
-    esac
-done
-for name in gel-server edgedb-server gel-load-ext edgedb-load-ext; do
-    module=edb.server.main
-    [[ $name == *load-ext ]] && module=edb.load_ext.main
-    cat > "$name.py" <<EOF
-# -*- coding: utf-8 -*-
-import re
-import sys
-from $module import main
-if __name__ == '__main__':
-    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?\$', '', sys.argv[0])
-    sys.exit(main())
-EOF
-    install -m 0755 "$SPIKE/launcher.sh" "$name"
-done
-rm -rf "$PREFIX/include" "$PREFIX/lib/pkgconfig" "$PREFIX/share/man" \
-    "$PREFIX/share/doc"
-find "$PREFIX/lib" -maxdepth 1 -name '*.a' -delete
+bash "$SPIKE/trim.sh" "$PREFIX" "$SRC" "$SPIKE"
 stage trim
 
 unset DYLD_FALLBACK_LIBRARY_PATH

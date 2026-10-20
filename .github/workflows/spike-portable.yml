@@ -54,6 +54,7 @@ jobs:
           docker run --rm \
             -v "$PWD/src:/src" -v "$PWD/spike-repo/spike:/spike:ro" -v "$PWD/out:/out" \
             "${{ matrix.image }}" bash /spike/build.sh "${{ matrix.target }}"
+          sudo chown -R "$(id -u):$(id -g)" out
           echo "total $(( $(date +%s) - start ))" >> out/timings.txt
           df -h / | tee -a out/size.txt
       - name: Report
