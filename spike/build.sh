@@ -86,6 +86,8 @@ cp -a "$WORK/python/." "$PREFIX/"
 rm -rf "$WORK/python"
 PY=$PREFIX/bin/python3
 "$PY" -VV
+"$PY" -I /spike/patch_sysconfig.py "$PREFIX"
+"$PY" -I -c 'import sysconfig; print(sysconfig.get_config_var("CC"), "|", sysconfig.get_config_var("LDSHARED"))'
 stage python
 
 # ---------------------------------------------------------------- native deps
@@ -227,20 +229,7 @@ rm -rf "$RUNDIR"
 stage bootstrap-cache
 
 # ---------------------------------------------------------------- package
-IDENTITY=$("$PY" -I - "$PREFIX" <<'PY'
-import importlib.util, pathlib, sys
-prefix = pathlib.Path(sys.argv[1])
-path = next(prefix.glob("lib/python3.*/site-packages/edb/_buildmeta.py"))
-spec = importlib.util.spec_from_file_location("_buildmeta", path)
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
-major, minor, stage, stage_no, local = mod.VERSION
-build_hash = next(p[1:] for p in local if p.startswith("s"))
-names = {0: "dev", 10: "alpha", 20: "beta", 30: "rc"}
-suffix = "" if stage == 40 else f"-{names[stage]}.{stage_no}"
-print(f"{major}.{minor}{suffix}+{build_hash}")
-PY
-)
+IDENTITY=$("$PY" -I /spike/identity.py "$PREFIX")
 echo "identity $IDENTITY" | tee "$OUT/identity.txt"
 mv "$PREFIX" "$STAGE/gel-server-$IDENTITY"
 cd "$STAGE"

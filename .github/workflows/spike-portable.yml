@@ -85,6 +85,93 @@ jobs:
           path: out/gel-server-*
           retention-days: 7
 
+  build-macos:
+    name: build (aarch64-apple-darwin)
+    runs-on: macos-26
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          path: spike-repo
+          persist-credentials: false
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.SOURCE_REF }}
+          path: src
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+      - name: Record runner
+        run: sysctl -n hw.ncpu hw.memsize; sw_vers; df -h /
+      - name: Build
+        run: |
+          start=$(date +%s)
+          bash spike-repo/spike/build-macos.sh src out
+          echo "total $(( $(date +%s) - start ))" >> out/timings.txt
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo "## aarch64-apple-darwin"
+            echo '```'
+            cat out/identity.txt out/timings.txt out/size.txt 2>/dev/null || true
+            echo
+            head -80 out/linkage.txt 2>/dev/null || true
+            echo
+            echo "built from source:"
+            cat out/built-from-source.txt 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        if: always()
+        with:
+          name: reports-aarch64-apple-darwin
+          path: |
+            out/*.txt
+            out/*.log
+            out/*.json
+            out/*.sha256
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: portable-aarch64-apple-darwin
+          path: out/gel-server-*
+          retention-days: 7
+
+  smoke-macos:
+    name: smoke (aarch64-apple-darwin)
+    needs: build-macos
+    runs-on: macos-26
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: portable-aarch64-apple-darwin
+          path: dist
+      - run: |
+          dest="$HOME/some/other/place"
+          mkdir -p "$dest"
+          tar -xzf dist/gel-server-aarch64-apple-darwin.tar.gz -C "$dest"
+          server=$(echo "$dest"/gel-server-*/bin/gel-server)
+          python=$(dirname "$server")/python3
+          "$server" --version
+          "$server" --data-dir "$RUNNER_TEMP/data" --runstate-dir "$RUNNER_TEMP" \
+            --tls-cert-mode generate_self_signed --port 5656 --bind-address 127.0.0.1 \
+            --bootstrap-command "ALTER ROLE admin { SET password := 'spike' }" \
+            > server.log 2>&1 &
+          pid=$!
+          for i in $(seq 120); do
+            if "$python" -I -c "
+          import gel
+          c = gel.create_client(host='127.0.0.1', port=5656, user='admin',
+                                password='spike', tls_security='insecure', database='main')
+          print('query result:', c.query_single('select 1 + 1'))
+          " 2>/dev/null; then kill $pid; exit 0; fi
+            kill -0 $pid || break
+            sleep 5
+          done
+          tail -50 server.log
+          exit 1
+
   smoke:
     name: smoke (${{ matrix.target }} on ${{ matrix.image }})
     needs: build
@@ -119,12 +206,13 @@ jobs:
 
   compare:
     name: compare with v7.1 (${{ matrix.target }})
-    needs: build
+    needs: [build, build-macos]
+    if: always() && !cancelled()
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_64-unknown-linux-gnu, aarch64-unknown-linux-musl]
+        target: [x86_64-unknown-linux-gnu, aarch64-unknown-linux-musl, aarch64-apple-darwin]
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
