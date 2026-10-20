@@ -82,7 +82,7 @@ fetch() {
     curl -sSfL -o "$WORK/src/$2" "$1"
     sha256sum "$WORK/src/$2" | tee -a "$OUT/sources.sha256"
 }
-fetch "https://github.com/astral-sh/python-build-standalone/releases/download/$PBS_TAG/cpython-$PY_VERSION%2B$PBS_TAG-$TARGET-install_only.tar.gz" python.tar.gz
+fetch "https://github.com/astral-sh/python-build-standalone/releases/download/$PBS_TAG/cpython-$PY_VERSION%2B$PBS_TAG-$TARGET-install_only_stripped.tar.gz" python.tar.gz
 fetch "https://github.com/openssl/openssl/releases/download/openssl-$OPENSSL_VERSION/openssl-$OPENSSL_VERSION.tar.gz" openssl.tar.gz
 fetch "https://github.com/unicode-org/icu/releases/download/release-${ICU_VERSION/./-}/icu4c-${ICU_VERSION/./_}-src.tgz" icu.tgz
 fetch "https://github.com/protobuf-c/protobuf-c/releases/download/v$PROTOBUF_C_VERSION/protobuf-c-$PROTOBUF_C_VERSION.tar.gz" protobuf-c.tar.gz

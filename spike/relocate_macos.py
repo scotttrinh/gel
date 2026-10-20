@@ -65,6 +65,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--prefix", required=True, type=pathlib.Path)
     ap.add_argument("--report", required=True, type=pathlib.Path)
+    ap.add_argument("--search", action="append", default=[], type=pathlib.Path)
     args = ap.parse_args()
     prefix = args.prefix.resolve()
     libdir = prefix / "lib"
@@ -82,7 +83,14 @@ def main() -> int:
             if dep.startswith(SYSTEM) or dep.startswith("@"):
                 continue
             name = os.path.basename(dep)
-            real = pathlib.Path(dep).resolve()
+            if os.path.isabs(dep):
+                real = pathlib.Path(dep).resolve()
+            else:
+                # e.g. ICU's bare install names ("libicuuc.74.dylib")
+                found = [d / dep for d in [libdir, *args.search] if (d / dep).exists()]
+                if not found:
+                    raise SystemExit(f"{f}: cannot find {dep}")
+                real = found[0].resolve()
             if str(real).startswith(str(prefix) + os.sep):
                 target = real
             elif name in by_name:
