@@ -81,7 +81,7 @@ stage openssl
 tar -xzf icu.tgz
 (
     cd icu/source
-    ./runConfigureICU macOS --prefix="$DEPS" --disable-samples \
+    ./runConfigureICU MacOSX --prefix="$DEPS" --disable-samples \
         --disable-tests --disable-extras > "$OUT/icu-configure.log"
     make -s -j"$JOBS" > /dev/null
     make -s install > /dev/null
@@ -174,6 +174,8 @@ stage bootstrap-cache
 
 IDENTITY=$("$PY" -I "$SPIKE/identity.py" "$PREFIX")
 echo "identity $IDENTITY" | tee "$OUT/identity.txt"
+# Installed files must be readable by whoever runs the server.
+chmod -R u+rwX,go+rX,go-w "$PREFIX"
 mv "$PREFIX" "$STAGE/gel-server-$IDENTITY"
 cd "$STAGE"
 tar -cf - "gel-server-$IDENTITY" | zstd -q -19 -T0 -o "$OUT/gel-server-$TARGET.tar.zst"

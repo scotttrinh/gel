@@ -217,6 +217,8 @@ stage bootstrap-cache
 # ---------------------------------------------------------------- package
 IDENTITY=$("$PY" -I /spike/identity.py "$PREFIX")
 echo "identity $IDENTITY" | tee "$OUT/identity.txt"
+# Installed files must be readable by whoever runs the server.
+chmod -R u+rwX,go+rX,go-w "$PREFIX"
 mv "$PREFIX" "$STAGE/gel-server-$IDENTITY"
 cd "$STAGE"
 tar -cf - "gel-server-$IDENTITY" | zstd -q -19 -T0 -o "$OUT/gel-server-$TARGET.tar.zst"
