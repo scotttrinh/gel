@@ -33,10 +33,14 @@ def deps(path: pathlib.Path) -> list[str]:
     ).stdout.splitlines()[1:]
     result = [line.strip().split(" (")[0] for line in out if line.strip()]
     # For dylibs, the first entry is the library's own install name.
-    if path.suffix in (".dylib", ".so") and result:
-        own = id_of(path)
-        result = [d for d in result if d != own]
-    return result
+    # A dylib's or bundle's own install name is listed too (once per
+    # architecture in universal2 wheels); it isn't a dependency.
+    own = id_of(path)
+    real = path.resolve()
+    return list(dict.fromkeys(
+        d for d in result
+        if d != own and not (os.path.isabs(d) and pathlib.Path(d).resolve() == real)
+    ))
 
 
 def id_of(path: pathlib.Path) -> str | None:
