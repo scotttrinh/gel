@@ -1,13 +1,20 @@
 name: Spike gel server install
 
 # Installs the archives from a finished spike-portable run with the
-# released gel CLI, through a local package root.
+# released gel CLI, through a local package root.  Pushes to this
+# workflow or its script use the latest spike-portable run known to pass.
 on:
+  push:
+    branches:
+      - spike/portable-build
+    paths:
+      - .github/workflows/spike-cli-install.yml
+      - spike/cli-install.sh
   workflow_dispatch:
     inputs:
       run_id:
         description: spike-portable run whose archives to install
-        required: true
+        required: false
 
 permissions:
   contents: read
@@ -43,7 +50,7 @@ jobs:
         with:
           name: portable-${{ matrix.target }}
           path: dist
-          run-id: ${{ inputs.run_id }}
+          run-id: ${{ inputs.run_id || '39417475162' }}
           github-token: ${{ github.token }}
       - run: curl -sSfL -o gel "$CLI_URL/gel-cli-${{ matrix.cli }}"
       - if: matrix.image
