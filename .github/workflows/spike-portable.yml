@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - spike/portable-build
+    paths-ignore:
+      - .github/workflows/spike-cli-install.yml
+      - spike/cli-install.sh
   workflow_dispatch:
 
 permissions:
