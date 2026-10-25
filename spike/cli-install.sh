@@ -60,9 +60,17 @@ pkg = {
 index = root / "archive/.jsonindexes" / f"{target}.json"
 index.write_text(json.dumps({"packages": [pkg]}, indent=1))
 print(index.read_text())
+for suffix in (".testing", ".nightly"):
+    (index.parent / f"{target}{suffix}.json").write_text('{"packages": []}')
 EOF
 "$python" -I -m http.server --bind 127.0.0.1 --directory "$root" 8000 \
     > /tmp/http.log 2>&1 &
+i=0
+until "$python" -I -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/archive/.jsonindexes/$target.json')" 2>/dev/null; do
+    i=$((i + 1))
+    if [ $i -gt 30 ]; then cat /tmp/http.log; exit 1; fi
+    sleep 1
+done
 
 cat > /tmp/cli-user.sh <<EOF
 set -eu
