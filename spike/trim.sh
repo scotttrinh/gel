@@ -61,15 +61,20 @@ find "$PREFIX/share/tests" -name __pycache__ -prune -exec rm -rf {} +
 mkdir -p "$PREFIX/etc/ssl"
 cp "$PYLIB/site-packages/certifi/cacert.pem" "$PREFIX/etc/ssl/cert.pem"
 
-# Strip debug info from what we compiled (gel-pkg stripped everything).
-# python-build-standalone ships pre-stripped builds, and its binaries use
-# linker features older strip versions corrupt, so leave those and
-# third-party wheels alone.
+# On Linux, python-build-standalone's python3.12 is statically linked; its
+# libpython is only for embedding, and nothing here embeds Python.
+if [[ $(file -b "$PREFIX/bin/python3.12") == ELF* ]]; then
+    rm -f "$PREFIX"/lib/libpython3*.so*
+fi
+
+# Strip debug info (gel-pkg stripped everything).  Leave
+# python-build-standalone's own binaries alone: they are already stripped,
+# and BOLT-optimized, which older strip versions corrupt.
 {
     find "$PREFIX/bin" -maxdepth 1 -type f ! -name 'python*' ! -name '*.py' ! -name '*-server' ! -name '*-load-ext'
     find "$PREFIX/lib" -maxdepth 1 -type f \( -name 'lib*.so*' -o -name 'lib*.dylib' \) ! -name 'libpython*'
     find "$PREFIX/lib/postgresql" -type f \( -name '*.so' -o -name '*.dylib' \)
-    find "$PYLIB/site-packages/edb" -type f \( -name '*.so' -o -name '*.dylib' \)
+    find "$PYLIB/site-packages" -type f \( -name '*.so' -o -name '*.dylib' \)
 } | while IFS= read -r f; do
     case "$(file -b "$f")" in
         ELF*) strip --strip-debug "$f" ;;
