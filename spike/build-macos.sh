@@ -182,6 +182,11 @@ IDENTITY=$("$PY" -I "$SPIKE/identity.py" "$PREFIX")
 echo "identity $IDENTITY" | tee "$OUT/identity.txt"
 # Installed files must be readable by whoever runs the server.
 chmod -R u+rwX,go+rX,go-w "$PREFIX"
+# gel CLI releases up to at least 7.10.2 resolve hard-link targets without
+# stripping the archive's top directory, so ship copies instead (PostgreSQL
+# installs its timezone aliases as hard links).
+find "$PREFIX" -type f -links +1 -exec sh -c \
+    'for f; do cp -p "$f" "$f.tmp" && mv "$f.tmp" "$f"; done' sh {} +
 mv "$PREFIX" "$STAGE/gel-server-$IDENTITY"
 cd "$STAGE"
 tar -cf - "gel-server-$IDENTITY" | zstd -q -19 -T0 -o "$OUT/gel-server-$TARGET.tar.zst"
