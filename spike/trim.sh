@@ -61,10 +61,14 @@ find "$PREFIX/share/tests" -name __pycache__ -prune -exec rm -rf {} +
 mkdir -p "$PREFIX/etc/ssl"
 cp "$PYLIB/site-packages/certifi/cacert.pem" "$PREFIX/etc/ssl/cert.pem"
 
-# On Linux, python-build-standalone's python3.12 is statically linked; its
-# libpython is only for embedding, and nothing here embeds Python.
-if [[ $(file -b "$PREFIX/bin/python3.12") == ELF* ]]; then
-    rm -f "$PREFIX"/lib/libpython3*.so*
+# python-build-standalone's python3.12 is statically linked; its libpython
+# is only for embedding, and nothing here embeds Python.
+case "$(file -b "$PREFIX/bin/python3.12")" in
+    ELF*) linked=$(readelf -d "$PREFIX/bin/python3.12") ;;
+    *) linked=$(otool -L "$PREFIX/bin/python3.12") ;;
+esac
+if [[ $linked != *libpython* ]]; then
+    rm -f "$PREFIX"/lib/libpython3*.so* "$PREFIX"/lib/libpython3*.dylib
 fi
 
 # Strip debug info (gel-pkg stripped everything).  Leave
