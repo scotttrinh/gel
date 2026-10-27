@@ -48,7 +48,13 @@ stage rust
 
 # ---------------------------------------------------------------- sources
 fetch() {
-    curl -sSfL --retry 5 --retry-all-errors -o "$WORK/src/$2" "$1"
+    # manylinux_2_28's curl predates --retry-all-errors.
+    local i
+    for i in 1 2 3 4 5; do
+        curl -sSfL -o "$WORK/src/$2" "$1" && break
+        [[ $i -lt 5 ]] || return 1
+        sleep 5
+    done
     sha256sum "$WORK/src/$2" | tee -a "$OUT/sources.sha256"
 }
 fetch "https://github.com/astral-sh/python-build-standalone/releases/download/$PBS_TAG/cpython-$PY_VERSION%2B$PBS_TAG-$TARGET-install_only_stripped.tar.gz" python.tar.gz
